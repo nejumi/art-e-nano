@@ -18,15 +18,15 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| **主指標** | `val/task_success` = 正答 **または** 正しい message_id を出典に引用 |
+| **主指標** | `val/answer_correct` = OpenAI ジャッジによる回答正答率 |
 | **検証** | `eval_temperature=0.7` + 固定 96 問 (seed=42) |
-| **学習報酬** | シンプル報酬 (+1 task_success / 部分報酬 / -0.2 IDK / -1 フォーマットエラー) |
-| **Judge** | OpenAI (`gpt-5.5`) を使用。`JUDGE_MODE=auto` では、障害時のみ heuristic にフォールバック |
-| **学習長** | step 0 のベースライン評価 + 3 回の更新。短く回して挙動を観察する |
+| **学習報酬** | ART-E 準拠のルーブリック報酬 (-2〜+2)。RULER 使用時も置き換えず補助加点として混ぜる |
+| **Judge** | OpenAI (`gpt-5.5`, `reasoning_effort=low`) を使用。`JUDGE_MODE=auto` では、障害時のみ heuristic にフォールバック |
+| **学習長** | step 0 のベースライン評価 + 複数回の更新。W&B で挙動を観察する |
 
 このハンズオンでは、単一の最高スコアを追うよりも、W&B 上で次の変化を観察することを重視します。
 
-- `val/task_success` がベースラインから改善しているか
+- `val/answer_correct` がベースラインから改善しているか
 - `val/sources_correct` が改善し、正しいメールを見つける行動が増えているか
 - `val/returned_i_dont_know` が下がる、または急増していないか
 - 学習を続けると必ず良くなるわけではないことを、checkpoint ごとの挙動から確認する
@@ -52,8 +52,11 @@ MODEL_NAME=art-e-nano-$(date +%Y%m%d-%H%M) uv run python -m art_e.train
 | `MODEL_NAME` | `art-e-nano-workshop` | **毎回ユニークな名前推奨** |
 | `FRESH_START` | `true` | 同名モデルを削除してベースから再開 |
 | `JUDGE_MODE` | `auto` | 通常は `auto` のままで OK。`llm` / `heuristic` も可 |
-| `USE_RULER` | `false` | RULER 報酬（OpenAI quota 必要） |
-| `SIMPLE_REWARD` | `true` | シンプル報酬 |
+| `JUDGE_REASONING_EFFORT` | `low` | OpenAI ジャッジの推論量 |
+| `USE_RULER` | `false` | RULER を補助加点として使う |
+| `RULER_WEIGHT` | `0.2` | `rubric_reward + RULER_WEIGHT * ruler_score` |
+| `IDK_PENALTY` | `0.2` | `"I don't know"` への退避を抑えるペナルティ |
+| `SIMPLE_REWARD` | `false` | 簡易報酬に切り替える実験用フラグ |
 
 終了時に **EVALUATION SUMMARY** が表示されます。スコアは環境やモデル提供状況で変動するため、README には固定の期待値を書かず、W&B 上で自分の Run の変化を確認します。
 
@@ -61,9 +64,9 @@ MODEL_NAME=art-e-nano-$(date +%Y%m%d-%H%M) uv run python -m art_e.train
 
 | メトリクス | 意味 |
 | --- | --- |
-| **`val/task_success`** | 主指標。右肩上がりが目標 |
+| **`val/answer_correct`** | 主指標。OpenAI ジャッジによる正答率 |
 | `val/sources_correct` | 正しいメールを引用できた率 |
-| `val/answer_correct` | 回答文の一致（LLM/heuristic judge） |
+| `val/task_success` | 正答または正しいメールを引用できた率 |
 | `val/returned_i_dont_know` | 急増 = 方策崩壊の兆候 |
 
 ## プロンプトのみのモデルとの比較 (オプション)

@@ -93,6 +93,7 @@ async def check_openai_judge() -> bool:
     try:
         from art_e.rollout import (
             JUDGE_MODEL,
+            JUDGE_REASONING_EFFORT,
             determine_if_answer_is_correct,
             get_active_judge_mode,
         )
@@ -112,7 +113,7 @@ async def check_openai_judge() -> bool:
         ok = correct is True and incorrect is False
         mode = get_active_judge_mode()
         label = (
-            f"ジャッジ判定 ({JUDGE_MODEL})"
+            f"ジャッジ判定 ({JUDGE_MODEL}, reasoning={JUDGE_REASONING_EFFORT})"
             if mode == "llm"
             else "ジャッジ判定 (heuristic fallback)"
         )

@@ -45,6 +45,8 @@ model = art.TrainableModel(
         max_turns=6,
         stupid_simple_reward_fn=os.getenv("SIMPLE_REWARD", "false").lower() in ("1", "true", "yes"),
         use_ruler=os.getenv("USE_RULER", "false").lower() in ("1", "true", "yes"),
+        ruler_weight=float(os.getenv("RULER_WEIGHT", "0.2")),
+        idk_penalty=float(os.getenv("IDK_PENALTY", "0.2")),
         training_config=TrainingConfig(),
     ),
 )
@@ -106,6 +108,10 @@ def _apply_env_overrides(tcfg: TrainingConfig, policy: ProjectPolicyConfig) -> N
         tcfg.learning_rate = float(os.environ["LEARNING_RATE"])
     if "EVAL_TEMPERATURE" in os.environ:
         policy.eval_temperature = float(os.environ["EVAL_TEMPERATURE"])
+    if "RULER_WEIGHT" in os.environ:
+        policy.ruler_weight = float(os.environ["RULER_WEIGHT"])
+    if "IDK_PENALTY" in os.environ:
+        policy.idk_penalty = float(os.environ["IDK_PENALTY"])
 
 
 async def run_training(model: art.TrainableModel):
@@ -143,7 +149,10 @@ async def run_training(model: art.TrainableModel):
     print(f"Validation data size: {len(val_scenarios)} (fixed seed={tcfg.seed})")
     print(f"Judge mode: {get_active_judge_mode()} (JUDGE_MODE={os.getenv('JUDGE_MODE', 'auto')})")
     print(f"RULER: {model.config.use_ruler} (judge={RULER_JUDGE})")
+    if model.config.use_ruler:
+        print(f"RULER mix: reward = rubric_reward + {model.config.ruler_weight} * ruler_score")
     print(f"Reward: {'simple' if model.config.stupid_simple_reward_fn else 'rubric'}")
+    print(f"IDK penalty: {model.config.idk_penalty}")
     print(
         "Config: "
         f"traj/group={tcfg.trajectories_per_group}, groups/step={tcfg.groups_per_step}, "
@@ -154,11 +163,22 @@ async def run_training(model: art.TrainableModel):
     async def score_group(group: art.TrajectoryGroup) -> art.TrajectoryGroup | None:
         if not model.config.use_ruler:
             return group
-        return await ruler_score_group(
+        scored_group = await ruler_score_group(
             group,
             judge_model=RULER_JUDGE,
             swallow_exceptions=True,
         )
+        if scored_group is None:
+            return None
+        for traj in scored_group.trajectories:
+            independent_reward = float(
+                traj.metrics.get("independent_reward", traj.reward)
+            )
+            ruler_score = float(traj.metrics.get("ruler_score", 0.0))
+            mixed_reward = independent_reward + model.config.ruler_weight * ruler_score
+            traj.metrics["mixed_reward"] = mixed_reward
+            traj.reward = mixed_reward
+        return scored_group
 
     train_iterator = iterate_dataset(
         train_scenarios,

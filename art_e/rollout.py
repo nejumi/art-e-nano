@@ -24,6 +24,7 @@ from art_e.project_types import ProjectPolicyConfig
 # 回答の正誤判定 (LLM-as-a-judge) に使うモデル。
 # オリジナルの art-e は gemini-2.0-flash / gpt-4o を使っていたが、最新モデルに更新。
 JUDGE_MODEL = os.getenv("JUDGE_MODEL", "gpt-5.5")
+JUDGE_REASONING_EFFORT = os.getenv("JUDGE_REASONING_EFFORT", "low")
 # auto: LLM を試し、quota 等で失敗したら heuristic に切替
 # llm / heuristic で固定も可
 JUDGE_MODE = os.getenv("JUDGE_MODE", "auto").lower()
@@ -168,9 +169,9 @@ def calculate_reward(
     if rubric.attempted_answer and not rubric.answer_correct:
         return -1 + partial_rewards
 
-    # 回答を返さなかった: 報酬は 0 〜 1
+    # 回答を返さなかった: 誤答よりは軽く、ただし退避先として得にならないようにする。
     if rubric.returned_i_dont_know or rubric.ran_out_of_turns:
-        return 0 + partial_rewards
+        return -policy_config.idk_penalty + partial_rewards
 
     # 回答が正しい: 報酬は 1 〜 2
     if rubric.answer_correct:
@@ -228,7 +229,7 @@ async def determine_if_answer_is_correct(answer: str, query: SyntheticQuery) -> 
     try:
         response = await get_judge_client().chat.completions.create(
             model=JUDGE_MODEL,
-            reasoning_effort="low",
+            reasoning_effort=JUDGE_REASONING_EFFORT,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {
@@ -442,11 +443,15 @@ async def rollout(
                     rubric.returned_i_dont_know = True
                 else:
                     rubric.attempted_answer = True
-                    # RULER 学習時は judge を検証だけに使い、学習ロールアウトの API コストを抑える
+                    # 既定では学習時も OpenAI judge で success/failure を採点する。
+                    # SKIP_TRAIN_JUDGE_WITH_RULER=true はコスト削減用だが、
+                    # 主報酬が sources_correct だけになるため教材用の既定にはしない。
                     skip_judge = (
                         for_training
                         and model.config.use_ruler
                         and model.trainable
+                        and os.getenv("SKIP_TRAIN_JUDGE_WITH_RULER", "false").lower()
+                        in ("1", "true", "yes")
                     )
                     if skip_judge:
                         rubric.sources_correct = (

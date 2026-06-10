@@ -29,6 +29,9 @@ class ProjectPolicyConfig(BaseModel):
     max_tokens: int = 2048
     stupid_simple_reward_fn: bool = False
     use_ruler: bool = False
+    # RULER は主報酬を置き換えず、成功/不成功ベースの報酬に小さく足す。
+    ruler_weight: float = 0.2
+    idk_penalty: float = 0.2
     # 検証時のサンプリング温度。0.0 だと Qwen3 は即「わかりません」に
     # 寄りやすく、1.0 だと評価が荒れるため 0.7 を採用。
     eval_temperature: float = 0.7
