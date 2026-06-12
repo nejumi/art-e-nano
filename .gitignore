@@ -10,7 +10,7 @@ __pycache__/
 .venv/
 
 # データ (HF からダウンロードして生成)
-data/
+/data/
 *.db
 
 # ART / W&B のローカル成果物

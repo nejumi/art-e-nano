@@ -22,6 +22,7 @@ import argparse
 import asyncio
 import os
 import sys
+import time
 import traceback
 
 PASS = "\033[92m✓ PASS\033[0m"
@@ -202,7 +203,9 @@ async def check_serverless_rl() -> bool:
 
         backend = ServerlessBackend()
         model = art.TrainableModel(
-            name="preflight-check",
+            # 固定名だと登録失敗時の残骸や参加者間の register/delete 競合が
+            # 起きるため、実行ごとに一意な名前を使う
+            name=f"preflight-check-{int(time.time())}",
             project=os.getenv("WANDB_PROJECT", "art-e-nano"),
             entity=os.getenv("WANDB_ENTITY"),
             base_model="OpenPipe/Qwen3-14B-Instruct",
@@ -223,7 +226,7 @@ async def check_serverless_rl() -> bool:
         # 確認用モデルを削除してクリーンアップ
         if model.id is not None:
             await backend._client.models.delete(model_id=model.id)
-            print("  (preflight-check モデルを削除しました)")
+            print(f"  ({model.name} モデルを削除しました)")
         await backend.close()
         return True
     except Exception as e:
