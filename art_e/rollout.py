@@ -8,7 +8,7 @@ from typing import Any, List
 
 import weave
 from langchain_core.utils.function_calling import convert_to_openai_tool
-from openai import AsyncOpenAI, RateLimitError
+from openai import AsyncOpenAI
 from openai.types.chat.chat_completion import Choice
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
@@ -57,6 +57,8 @@ def get_active_judge_mode() -> str:
         return "heuristic"
     if JUDGE_MODE == "llm":
         return "llm"
+    if not os.getenv("OPENAI_API_KEY"):
+        return "heuristic"
     if _llm_judge_available is False:
         return "heuristic"
     return "llm"
@@ -241,7 +243,7 @@ async def determine_if_answer_is_correct(answer: str, query: SyntheticQuery) -> 
         _llm_judge_available = True
         content = response.choices[0].message.content or ""
         return content.strip().lower().startswith("t")
-    except RateLimitError as e:
+    except Exception as e:
         if JUDGE_MODE == "llm":
             raise
         _llm_judge_available = False

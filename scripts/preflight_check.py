@@ -8,7 +8,7 @@
 
   1. Python バージョン
   2. .env の必須環境変数
-  3. OpenAI API (ジャッジモデル。使えない場合は heuristic judge にフォールバック可能)
+  3. ジャッジ設定 (OpenAI API または heuristic judge)
   4. W&B 認証 (WANDB_API_KEY)
   5. Hugging Face データセットのダウンロード (学習データ)
   6. メール DB (SQLite) の構築と検索ツールの動作確認
@@ -63,10 +63,15 @@ def check_env_vars() -> bool:
 
     load_dotenv()
 
+    judge_mode = os.getenv("JUDGE_MODE", "auto").lower()
     all_ok = True
+    if judge_mode not in ("auto", "llm", "heuristic"):
+        report("JUDGE_MODE が有効な値", False, f"検出: {judge_mode}")
+        all_ok = False
+
     for var, required in [
         ("WANDB_API_KEY", True),
-        ("OPENAI_API_KEY", True),
+        ("OPENAI_API_KEY", judge_mode == "llm"),
         ("WANDB_ENTITY", False),
         ("WANDB_PROJECT", False),
     ]:
@@ -75,6 +80,13 @@ def check_env_vars() -> bool:
         if required:
             report(f"{var} が設定されている", ok)
             all_ok = all_ok and ok
+        elif var == "OPENAI_API_KEY":
+            label = (
+                "設定済み"
+                if ok
+                else f"未設定 (JUDGE_MODE={judge_mode} のため heuristic judge にフォールバック)"
+            )
+            print(f"  {PASS if ok else SKIP}  {var}: {label}")
         else:
             label = "設定済み" if ok else "未設定 (デフォルト値を使用)"
             print(f"  {PASS if ok else SKIP}  {var}: {label}")
@@ -82,12 +94,13 @@ def check_env_vars() -> bool:
 
 
 async def check_openai_judge() -> bool:
-    section("3. OpenAI API (ジャッジモデル)")
-    if not os.getenv("OPENAI_API_KEY"):
+    section("3. ジャッジ設定")
+    judge_mode = os.getenv("JUDGE_MODE", "auto").lower()
+    if judge_mode == "llm" and not os.getenv("OPENAI_API_KEY"):
         report(
             "OPENAI_API_KEY",
             False,
-            "イベント案内に従って OpenAI API キーを設定してください",
+            "JUDGE_MODE=llm の場合は OpenAI API キーが必要です",
         )
         return False
 

@@ -12,11 +12,15 @@
 
 1. [wandb.ai](https://wandb.ai) でアカウントを作成 (会社のチームに所属している場合はそのアカウントで OK)
 2. [wandb.ai/authorize](https://wandb.ai/authorize) で API キーを取得
-3. Serverless RL は W&B Training の利用枠が必要です。ハンズオン主催者から案内された entity (チーム) を使ってください
+3. Serverless RL は W&B Training の利用枠が必要です。`.env` の `WANDB_ENTITY` には、個人ユーザー名ではなく、ハンズオン主催者から案内された Team entity 名を指定してください
 
-### OpenAI (必須)
+> `WANDB_ENTITY` に個人アカウント名を指定すると、通常の W&B ログ記録はできても、Serverless RL のモデル登録で `Error code: 524 origin_response_timeout` や権限エラーになる場合があります。W&B Training が有効な Team entity を使ってください。
 
-回答の正誤判定 (LLM-as-a-judge) に使います。イベント案内に従って、各自で API キーを用意してください。万一 quota 不足などで LLM judge が使えない場合も、ハンズオン本体は heuristic judge にフォールバックできます。
+### OpenAI (任意)
+
+回答の正誤判定 (LLM-as-a-judge) や RULER を使う場合に利用します。OpenAI API キーを用意できない場合も、`JUDGE_MODE=heuristic` でヒューリスティック判定に切り替えて参加できます。当日の標準手順は RULER を使わない構成で進めます。
+
+OpenAI API キーを使う場合:
 
 1. [platform.openai.com](https://platform.openai.com) でアカウントを作成
 2. [API keys](https://platform.openai.com/api-keys) でキーを発行
@@ -52,11 +56,24 @@ cp .env.sample .env
 
 `.env` をエディタで開き、自分のキーを設定します。
 
+OpenAI API キーを使う場合:
+
 ```bash
 WANDB_API_KEY=<1. で取得した W&B の API キー>
-WANDB_ENTITY=<案内された entity 名>
+WANDB_ENTITY=<案内された Team entity 名>
 WANDB_PROJECT=art-e-nano
 OPENAI_API_KEY=<1. で取得した OpenAI の API キー>
+JUDGE_MODE=auto
+```
+
+OpenAI API キーを使わない場合:
+
+```bash
+WANDB_API_KEY=<1. で取得した W&B の API キー>
+WANDB_ENTITY=<案内された Team entity 名>
+WANDB_PROJECT=art-e-nano
+JUDGE_MODE=heuristic
+# OPENAI_API_KEY は未設定またはコメントアウトのままにしてください
 ```
 
 > `.env` は `.gitignore` 済みです。API キーは絶対にコミットしないでください。
@@ -67,7 +84,7 @@ OPENAI_API_KEY=<1. で取得した OpenAI の API キー>
 uv run python scripts/preflight_check.py
 ```
 
-当日使う主要な API を実際に呼び出して検証します (約 2〜5 分。初回はメール DB の構築で数分かかります)。OpenAI API キーはイベント案内どおり設定してください。quota 不足時は heuristic judge へのフォールバックが使えますが、事前確認では警告として表示されます。
+当日使う主要な API を実際に呼び出して検証します (約 2〜5 分。初回はメール DB の構築で数分かかります)。OpenAI API キーがない場合は、`.env` で `JUDGE_MODE=heuristic` を設定してから実行してください。
 
 ```
 ============================================================
@@ -79,7 +96,7 @@ ART-E nano ハンズオン事前確認
 
 [2. 環境変数 (.env)]
   ✓ PASS  WANDB_API_KEY が設定されている
-  ✓ PASS  OPENAI_API_KEY が設定されている
+  - SKIP  OPENAI_API_KEY: 未設定 (JUDGE_MODE=heuristic のため heuristic judge にフォールバック)
   ...
 
 [7. W&B Serverless RL (モデル登録 → 推論 → 削除)]
@@ -98,9 +115,10 @@ ART-E nano ハンズオン事前確認
 | 症状 | 対処 |
 | --- | --- |
 | `WANDB_API_KEY が有効` で FAIL | キーの値を再確認。`wandb.ai/authorize` で再発行して `.env` を更新 |
-| `OPENAI_API_KEY が設定されている` で FAIL | イベント案内に従って OpenAI API キーを `.env` に設定 |
-| `ジャッジ判定` が heuristic fallback | OpenAI の quota / 利用上限を確認。学習自体は fallback で続行可能 |
+| `OPENAI_API_KEY が設定されている` で FAIL | `JUDGE_MODE=llm` の場合は OpenAI API キーが必須です。キーがない場合は `.env` で `JUDGE_MODE=heuristic` に変更 |
+| `ジャッジ判定` が heuristic fallback | OpenAI API キー未設定、quota / 利用上限、または `JUDGE_MODE=heuristic` により heuristic judge を使用中。学習自体は続行可能 |
 | `Serverless RL へのモデル登録` で FAIL (403) | 指定した `WANDB_ENTITY` に W&B Training の利用権限がない。主催者に entity 名を確認 |
+| `Serverless RL へのモデル登録` で FAIL (`524 origin_response_timeout`) | `.env` の `WANDB_ENTITY` に個人ユーザー名を指定していないか確認。W&B Training が有効な Team entity 名に変更して再実行 |
 | データセットのダウンロードが遅い / 失敗 | ネットワークを確認して再実行。再実行時はキャッシュから再開されます |
 | 社内プロキシ環境で SSL エラー | `HTTPS_PROXY` / `SSL_CERT_FILE` を設定するか、別ネットワークで実行 |
 

@@ -21,7 +21,7 @@
 | **主指標** | `val/answer_correct` = OpenAI ジャッジによる回答正答率 |
 | **検証** | `eval_temperature=0.7` + 固定 96 問 (seed=42) |
 | **学習報酬** | ART-E 準拠のルーブリック報酬 (-2〜+2)。RULER 使用時も置き換えず補助加点として混ぜる |
-| **Judge** | OpenAI (`gpt-5.5`, `reasoning_effort=low`) を使用。`JUDGE_MODE=auto` では、障害時のみ heuristic にフォールバック |
+| **Judge** | OpenAI (`gpt-5.5`, `reasoning_effort=low`) または heuristic。OpenAI API キーがない場合は `JUDGE_MODE=heuristic` で参加可能 |
 | **学習長** | step 0 のベースライン評価 + 複数回の更新。W&B で挙動を観察する |
 
 このハンズオンでは、単一の最高スコアを追うよりも、W&B 上で次の変化を観察することを重視します。
@@ -39,6 +39,8 @@
 uv run python scripts/preflight_check.py
 ```
 
+Serverless RL を使うため、`.env` の `WANDB_ENTITY` には個人ユーザー名ではなく、W&B Training が有効な Team entity 名を指定してください。
+
 ## 学習の実行
 
 ```bash
@@ -49,9 +51,10 @@ MODEL_NAME=art-e-nano-$(date +%Y%m%d-%H%M) uv run python -m art_e.train
 
 | 変数 | デフォルト | 説明 |
 | --- | --- | --- |
+| `WANDB_ENTITY` | なし | W&B Training が有効な Team entity 名。個人ユーザー名ではなく Team を指定 |
 | `MODEL_NAME` | `art-e-nano-workshop` | **毎回ユニークな名前推奨** |
 | `FRESH_START` | `true` | 同名モデルを削除してベースから再開 |
-| `JUDGE_MODE` | `auto` | 通常は `auto` のままで OK。`llm` / `heuristic` も可 |
+| `JUDGE_MODE` | `auto` | `auto` / `llm` / `heuristic`。OpenAI API キーがない場合は `heuristic` |
 | `JUDGE_REASONING_EFFORT` | `low` | OpenAI ジャッジの推論量 |
 | `USE_RULER` | `false` | RULER を補助加点として使う |
 | `RULER_WEIGHT` | `0.2` | `rubric_reward + RULER_WEIGHT * ruler_score` |
