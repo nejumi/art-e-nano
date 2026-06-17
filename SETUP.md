@@ -12,7 +12,7 @@
 
 1. [wandb.ai](https://wandb.ai) でアカウントを作成 (会社のチームに所属している場合はそのアカウントで OK)
 2. [wandb.ai/authorize](https://wandb.ai/authorize) で API キーを取得
-3. Serverless RL は W&B Training の利用枠が必要です。`.env` の `WANDB_ENTITY` には、個人ユーザー名ではなく、ハンズオン主催者から案内された Team entity 名を指定してください
+3. Serverless RL は W&B Training の利用枠が必要です。`.env` の `WANDB_ENTITY` には、個人ユーザー名ではなく、利用可能な Team entity 名を指定してください。Team entity であれば基本的には任意のチームで構いません。チームがない場合は [W&B の手順](https://docs.wandb.ai/ja/platform/app/settings-page/teams#%E5%85%B1%E5%90%8C%E4%BD%9C%E6%A5%AD%E7%94%A8%E3%81%AE%E3%83%81%E3%83%BC%E3%83%A0%E3%82%92%E4%BD%9C%E6%88%90%E3%81%99%E3%82%8B) に従って作成してください。
 
 > `WANDB_ENTITY` に個人アカウント名を指定すると、通常の W&B ログ記録はできても、Serverless RL のモデル登録で `Error code: 524 origin_response_timeout` や権限エラーになる場合があります。W&B Training が有効な Team entity を使ってください。
 
@@ -60,7 +60,7 @@ OpenAI API キーを使う場合:
 
 ```bash
 WANDB_API_KEY=<1. で取得した W&B の API キー>
-WANDB_ENTITY=<案内された Team entity 名>
+WANDB_ENTITY=<利用可能な Team entity 名>
 WANDB_PROJECT=art-e-nano
 OPENAI_API_KEY=<1. で取得した OpenAI の API キー>
 JUDGE_MODE=auto
@@ -70,7 +70,7 @@ OpenAI API キーを使わない場合:
 
 ```bash
 WANDB_API_KEY=<1. で取得した W&B の API キー>
-WANDB_ENTITY=<案内された Team entity 名>
+WANDB_ENTITY=<利用可能な Team entity 名>
 WANDB_PROJECT=art-e-nano
 JUDGE_MODE=heuristic
 # OPENAI_API_KEY は未設定またはコメントアウトのままにしてください
@@ -117,7 +117,7 @@ ART-E nano ハンズオン事前確認
 | `WANDB_API_KEY が有効` で FAIL | キーの値を再確認。`wandb.ai/authorize` で再発行して `.env` を更新 |
 | `OPENAI_API_KEY が設定されている` で FAIL | `JUDGE_MODE=llm` の場合は OpenAI API キーが必須です。キーがない場合は `.env` で `JUDGE_MODE=heuristic` に変更 |
 | `ジャッジ判定` が heuristic fallback | OpenAI API キー未設定、quota / 利用上限、または `JUDGE_MODE=heuristic` により heuristic judge を使用中。学習自体は続行可能 |
-| `Serverless RL へのモデル登録` で FAIL (403) | 指定した `WANDB_ENTITY` に W&B Training の利用権限がない。主催者に entity 名を確認 |
+| `Serverless RL へのモデル登録` で FAIL (403) | 指定した `WANDB_ENTITY` が Team entity であることと、W&B Training の利用権限があることを確認。チームがない場合は W&B のチーム作成手順に従って作成 |
 | `Serverless RL へのモデル登録` で FAIL (`524 origin_response_timeout`) | `.env` の `WANDB_ENTITY` に個人ユーザー名を指定していないか確認。W&B Training が有効な Team entity 名に変更して再実行 |
 | データセットのダウンロードが遅い / 失敗 | ネットワークを確認して再実行。再実行時はキャッシュから再開されます |
 | 社内プロキシ環境で SSL エラー | `HTTPS_PROXY` / `SSL_CERT_FILE` を設定するか、別ネットワークで実行 |
